@@ -1,0 +1,31 @@
+
+//To find emails which are not delivered to inbox, to find spam/malware and misconfigured emails
+EmailEvents
+| where DeliveryAction != "Delivered"
+
+
+// To audit which not delivered and count Domain of email sender (asencending order)
+EmailEvents
+| where Timestamp > ago(30d)
+| where DeliveryAction != "Delivered"
+| project RecipientEmailAddress, DomainName = tostring(split(SenderFromAddress, "@")[1])
+| summarize Count=count() by RecipientEmailAddress
+| sort by Count asc
+
+// To find domains which are getting not delivered  (decending order)
+EmailEvents
+| where Timestamp > ago(30d)
+| where DeliveryAction != "Delivered"
+| project RecipientEmailAddress, DomainName = tostring(split(SenderFromAddress, "@")[1])
+| summarize Count=count() by DomainName
+| sort by Count desc 
+
+
+
+// Total threat types count (source from MS ATP documentation)
+EmailEvents
+| where Timestamp > ago(30d)
+| where ThreatTypes has "Malware" or ThreatTypes has "Phish"
+| join (IdentityInfo | distinct AccountUpn, AccountDisplayName, JobTitle,Department, City, Country) on $left.RecipientEmailAddress == $right.AccountUpn
+| project Timestamp, NetworkMessageId, Subject, ThreatTypes,SenderFromAddress, RecipientEmailAddress, AccountDisplayName, JobTitle, Department, City, Country
+| summarize Count=count() by ThreatTypes
